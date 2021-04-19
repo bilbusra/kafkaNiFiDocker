@@ -1,0 +1,56 @@
+version: '2'
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper:latest
+    ports:
+      - "2181:2181"
+  kafka:
+    image: wurstmeister/kafka:latest
+    ports:
+      - "9092"
+    environment:
+      image: wurstmeister/kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - 9094:9094
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://kafka:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  nifi:
+    image: apache/nifi:latest
+    ports:
+      - 8080:8080
+  zeppelin:
+    environment:
+      ZEPPELIN_PORT: "8585"
+    image: apache/zeppelin:0.8.1
+    ports:
+      - "8585:8585"
+    depends_on:
+      - kafka
+  spark-master:
+    image: spydernaz/spark-master:latest
+    ports:
+      - "9090:8080"
+      - "7077:7077"
+    volumes:
+       - ./apps:/opt/spark-apps
+       - ./data:/opt/spark-data
+    environment:
+      - "SPARK_LOCAL_IP=spark-master"
+  spark-worker:
+    image: spydernaz/spark-worker:latest
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_DRIVER_MEMORY=128m
+      - SPARK_EXECUTOR_MEMORY=256m
